@@ -1,0 +1,71 @@
+#ifndef _TYPE_H_
+#define _TYPE_H_
+
+
+#include <stdint.h>
+#include <stddef.h>
+
+
+#if UINTPTR_MAX == 0xffffffff
+    #define __ARCH_32__
+#elif UINTPTR_MAX == 0xffffffffffffffff
+    #define __ARCH_64__
+#else
+    #error "Unsupported platforms."
+#endif
+
+
+#if !defined(__OS_WINDOWS__) && !defined(__OS_UNIX__)
+    #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
+        #define __OS_WINDOWS__
+    #elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
+        #define __OS_UNIX__
+        #define _GNU_SOURCE
+    #else
+        #error "Unsupported platforms."
+    #endif
+#endif
+
+
+#if defined(__OS_UNIX__)
+    /**
+     * @brief Cast a pointer to a structure member out to the containing structure (`GNU`).
+     * @param ptr A pointer to the member.
+     * @param type The type of the container struct this is embedded in.
+     * @param member The name of the member within the struct.
+    **/
+    #define type_container_of(ptr, type, member) ({const typeof(((type *)0)->member) *mptr = (ptr); (type *)((char *)mptr - offsetof(type, member));})
+#elif defined(__OS_WINDOWS__)
+    /**
+     * @brief Cast a pointer to a structure member out to the containing structure (`Universal`).
+     * @param ptr A pointer to the member.
+     * @param type The type of the container struct this is embedded in.
+     * @param member The name of the member within the struct.
+    **/
+    #define type_container_of(ptr, type, member) ((type *)((char *)(ptr) - offsetof(type, member)))
+#endif
+
+
+#define True 1
+#define False 0
+#define bool int
+
+
+typedef size_t usize;
+typedef ptrdiff_t isize;
+typedef uint8_t byte;
+typedef uintptr_t uintptr;
+typedef intptr_t intptr;
+typedef int8_t int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
+typedef float float32;
+typedef double float64;
+
+
+#endif
