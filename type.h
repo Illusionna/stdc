@@ -49,13 +49,17 @@
 #define True 1
 #define False 0
 #define bool int
+#define intptr(x) ((intptr_t)(x))
+#define uintptr(x) ((uintptr_t)(x))
+#define int32ptr(x) ((int32_t)(intptr_t)(x))
+#define int64ptr(x) ((int64_t)(intptr_t)(x))
+#define uint32ptr(x) ((uint32_t)(uintptr_t)(x))
+#define uint64ptr(x) ((uint64_t)(uintptr_t)(x))
 
 
 typedef size_t usize;
 typedef ptrdiff_t isize;
 typedef uint8_t byte;
-typedef uintptr_t uintptr;
-typedef intptr_t intptr;
 typedef int8_t int8;
 typedef int16_t int16;
 typedef int32_t int32;
