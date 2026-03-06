@@ -75,7 +75,11 @@ $(STATIC): $(compilation)
 ifeq ($(OS), Windows_NT)
 	gcc-ar rcs $(STATIC) $(compilation)
 else
+    ifeq ($(shell uname), Darwin)
 	ar rcs $(STATIC) $(compilation)
+    else
+	gcc-ar rcs $(STATIC) $(compilation)
+    endif
 endif
 
 install: shared static
