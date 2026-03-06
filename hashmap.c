@@ -89,7 +89,7 @@ void hashmap_print_view(HashMap *dict) {
     printf("Bucket Table = \x1b[1;37m%llu B\x1b[0m (%llu buckets x %zu B)\n", table_size, dict->bucket, sizeof(_HashMapNode *));
     printf("Node = \x1b[1;37m%llu B\x1b[0m (%llu nodes x %zu B)\n", nodes_size, dict->count, sizeof(_HashMapNode));
     printf("String Heap = \x1b[1;37m%llu B\x1b[0m\n", string_size);
-    printf("Total = \x1b[1;37m%llu B\x1b[0m (\x1b[1;37m%s\x1b[0m)\n", total, buffer);
+    printf("Total = \x1b[1;37m%llu B\x1b[0m (\x1b[1;37m%s\x1b[0m)\n\n", total, buffer);
 }
 
 
