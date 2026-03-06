@@ -52,9 +52,9 @@
 #define intptr(x) ((intptr_t)(x))
 #define uintptr(x) ((uintptr_t)(x))
 #define int32ptr(x) ((int32_t)(intptr_t)(x))
-#define int64ptr(x) ((int64_t)(intptr_t)(x))
+#define int64ptr(x) ((long long)(intptr_t)(x))
 #define uint32ptr(x) ((uint32_t)(uintptr_t)(x))
-#define uint64ptr(x) ((uint64_t)(uintptr_t)(x))
+#define uint64ptr(x) ((unsigned long long)(uintptr_t)(x))
 
 
 typedef size_t usize;
@@ -63,11 +63,11 @@ typedef uint8_t byte;
 typedef int8_t int8;
 typedef int16_t int16;
 typedef int32_t int32;
-typedef int64_t int64;
+typedef long long int64;
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
-typedef uint64_t uint64;
+typedef unsigned long long uint64;
 typedef float float32;
 typedef double float64;
 
