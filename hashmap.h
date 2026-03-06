@@ -2,13 +2,48 @@
 #define _HASHMAP_H_
 
 
+#if !defined(__OS_WINDOWS__) && !defined(__OS_UNIX__)
+    #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
+        #define __OS_WINDOWS__
+    #elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
+        #define __OS_UNIX__
+        #define _GNU_SOURCE
+    #else
+        #error "Unsupported platforms."
+    #endif
+#endif
+
+
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <stddef.h>
 
 
-#include "type.h"
+#define True 1
+#define False 0
+#define bool int
+#define intptr(x) ((intptr_t)(x))
+#define uintptr(x) ((uintptr_t)(x))
+#define int32ptr(x) ((int32_t)(intptr_t)(x))
+#define int64ptr(x) ((long long)(intptr_t)(x))
+#define uint32ptr(x) ((uint32_t)(uintptr_t)(x))
+#define uint64ptr(x) ((unsigned long long)(uintptr_t)(x))
+typedef size_t usize;
+typedef ptrdiff_t isize;
+typedef uint8_t byte;
+typedef int8_t int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef long long int64;
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef unsigned long long uint64;
+typedef float float32;
+typedef double float64;
 
 
 #define HASHMAP_INIT_BUCKETS 8  // The value of `HASHMAP_INIT_BUCKETS` must be the power of `2`.
