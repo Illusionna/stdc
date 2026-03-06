@@ -217,7 +217,7 @@ MapFile *os_mmap(char *filepath, usize length) {
             return NULL;
         }
     #elif defined(__OS_WINDOWS__)
-        f->hFile = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        f->hFile = CreateFile(filepath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
         if (f->hFile == INVALID_HANDLE_VALUE) return NULL;
         f->hMapping = CreateFileMapping(f->hFile, NULL, PAGE_READONLY, 0, 0, NULL);
         if (f->hMapping == NULL) {
