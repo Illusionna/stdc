@@ -46,6 +46,11 @@
 #endif
 
 
+#define KB ((unsigned long long)(1 << 10))
+#define MB ((unsigned long long)(1 << 20))
+#define GB ((unsigned long long)(1 << 30))
+
+
 #define True 1
 #define False 0
 #define bool int
