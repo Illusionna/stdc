@@ -187,6 +187,13 @@ void hashmap_print_view(HashMap *dict);
 
 
 /**
+ * @brief Print the pairs in the `HashMap`.
+ * @param dict The `HashMap` dictionary.
+**/
+void hashmap_print_pairs(HashMap *dict);
+
+
+/**
  * @brief Print the content of `HashMapVariant`.
  * @param x The `HashMapVariant` input.
 **/
