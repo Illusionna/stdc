@@ -93,6 +93,27 @@ void hashmap_print_view(HashMap *dict) {
 }
 
 
+void hashmap_print_pairs(HashMap *dict) {
+    if (!dict) return;
+    if (dict->count == 0) {
+        printf("{}\n");
+        return;
+    }
+    HashMapVariant *key;
+    HashMapVariant *value;
+    uint64 count = 0;
+    printf("{");
+    hashmap_iter(dict, key, value) {
+        __hashmap_print__(*key);
+        printf(": ");
+        __hashmap_print__(*value);
+        if (count + 1 != dict->count) printf(", ");
+        count++;
+    }
+    printf("}\n");
+}
+
+
 void hashmap_print_variant(HashMapVariant *x) {
     if (x == NULL) {
         printf("\x1b[1;31mnull\x1b[0m\n");
