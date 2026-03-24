@@ -71,7 +71,7 @@ void *memorypool_alloc(MemoryPool *pool, usize size) {
         p->chunk_list = chunk;
 
         char *start = (char *)(chunk + 1);
-        for (int i = 0; i < p->block_per_chunk; i++) {
+        for (usize i = 0; i < p->block_per_chunk; i++) {
             _MemoryBlock *block = (_MemoryBlock *)(start + i * p->block_size);
             block->next = p->free_list;
             p->free_list = block;
