@@ -28,6 +28,15 @@
 
 
 #if defined(__OS_UNIX__)
+    #include <sys/types.h>
+    typedef ssize_t ssize;
+#elif defined(__OS_WINDOWS__)
+    #include <basetsd.h>
+    typedef SSIZE_T ssize;
+#endif
+
+
+#if defined(__OS_UNIX__)
     /**
      * @brief Cast a pointer to a structure member out to the containing structure (`GNU`).
      * @param ptr A pointer to the member.
