@@ -13,6 +13,10 @@
 #endif
 
 
+#include <stdio.h>
+#include <errno.h>
+
+
 #if defined(__OS_WINDOWS__)
     #include <winsock2.h>
     #include <ws2tcpip.h>
@@ -24,18 +28,36 @@
     #include <ifaddrs.h>
     #include <net/if.h>
     #include <unistd.h>
+    #include <fcntl.h>
     #include <netdb.h>
+#endif
+
+
+#if defined(__linux__)
+    #include <sys/sendfile.h>
 #endif
 
 
 #if defined(__OS_WINDOWS__)
     typedef SOCKET Socket;
     #define SOCKET_INVALID INVALID_SOCKET
+    /**
+     * @brief Send `FIN` to inform the destination that all data has been sent.
+     * @param s The socket descriptor.
+     * @return `0` for success, `-1` for failure.
+    **/
     #define socket_shutdown(s) shutdown(s, SD_SEND)
+    #define socket_fseek _fseeki64
 #elif defined(__OS_UNIX__)
     typedef int Socket;
     #define SOCKET_INVALID -1
+    /**
+     * @brief Send `FIN` to inform the destination that all data has been sent.
+     * @param s The socket descriptor.
+     * @return `0` for success, `-1` for failure.
+    **/
     #define socket_shutdown(s) shutdown(s, SHUT_WR)
+    #define socket_fseek fseeko
 #endif
 
 
@@ -57,9 +79,9 @@
 
 /**
  * @brief Initialize a socket.
- * @return `1` for failure.
+ * @return `SOCKET_INVALID` for failure.
 **/
-int socket_init();
+Socket socket_init();
 
 
 /**
@@ -102,7 +124,7 @@ void socket_config(struct sockaddr_in *server, int domain, char *ip, int port);
  * @param size The `sizeof(server)` of the `sockaddr_in` structure.
  * @return `SOCKET_INVALID` for failure.
 **/
-int socket_connect(Socket s, struct sockaddr_in *server, int size);
+Socket socket_connect(Socket s, struct sockaddr_in *server, int size);
 
 
 /**
@@ -111,9 +133,9 @@ int socket_connect(Socket s, struct sockaddr_in *server, int size);
  * @param buffer The data buffer.
  * @param length The length of data buffer.
  * @param flag The flag for sending data (e.g. `0` for default).
- * @return `SOCKET_INVALID` for failure.
+ * @return `> 0` for actual bytes sent, `= 0` for connection closed, `< 0` for failure in sending.
 **/
-int socket_send(Socket s, char *buffer, int length, int flag);
+long socket_send(Socket s, char *buffer, int length, int flag);
 
 
 /**
@@ -124,9 +146,9 @@ int socket_send(Socket s, char *buffer, int length, int flag);
  * @param flag The flag for sending data (e.g. `0` for default).
  * @param to The storage of destination host and port.
  * @param size Use `sizeof(struct sockaddr)` to get the size of `to`.
- * @return `SOCKET_INVALID` for failure.
+ * @return `> 0` for actual bytes sent, `= 0` for connection closed, `< 0` for failure in sending.
 **/
-int socket_sendto(Socket s, void *buffer, int length, int flag, struct sockaddr_in *to, int size);
+long socket_sendto(Socket s, void *buffer, int length, int flag, struct sockaddr_in *to, int size);
 
 
 /**
@@ -135,9 +157,9 @@ int socket_sendto(Socket s, void *buffer, int length, int flag, struct sockaddr_
  * @param buffer The response data buffer.
  * @param length The length of response data buffer.
  * @param flag The flag for receiving data (e.g. `0` for default).
- * @return The index of the last character received.
+ * @return `> 0` for actual bytes received, `= 0` for connection closed, `< 0` for failure in receiving.
 **/
-int socket_recv(Socket s, char *buffer, int length, int flag);
+long socket_recv(Socket s, char *buffer, int length, int flag);
 
 
 /**
@@ -148,9 +170,9 @@ int socket_recv(Socket s, char *buffer, int length, int flag);
  * @param flag The flag for receiving data (e.g. `0` for default).
  * @param from The storage of source host and port.
  * @param size Use `sizeof(struct sockaddr)` to get the size of `from`.
- * @return The index of the last character received.
+ * @return `> 0` for actual bytes received, `= 0` for connection closed, `< 0` for failure in receiving.
 **/
-int socket_recvfrom(Socket s, void *buffer, int length, int flag, struct sockaddr_in *from, int *size);
+long socket_recvfrom(Socket s, void *buffer, int length, int flag, struct sockaddr_in *from, int *size);
 
 
 /**
@@ -160,7 +182,7 @@ int socket_recvfrom(Socket s, void *buffer, int length, int flag, struct sockadd
  * @param size The `sizeof(address_name)` of the `sockaddr_in` structure.
  * @return `SOCKET_INVALID` for failure.
 **/
-int socket_bind(Socket s, struct sockaddr_in *address_name, int size);
+Socket socket_bind(Socket s, struct sockaddr_in *address_name, int size);
 
 
 /**
@@ -169,7 +191,7 @@ int socket_bind(Socket s, struct sockaddr_in *address_name, int size);
  * @param backlog The maximum queue length waiting for connection (e.g. `backlog = 5`, five connection requests will be queued).
  * @return `SOCKET_INVALID` for failure.
 **/
-int socket_listen(Socket s, int backlog);
+Socket socket_listen(Socket s, int backlog);
 
 
 /**
@@ -191,7 +213,7 @@ Socket socket_accept(Socket s, struct sockaddr_in *address, int *size_pointer);
  * @param size The size of `ctx` (you can use `0`).
  * @return `SOCKET_INVALID` for failure.
 **/
-int socket_setopt(Socket s, int level, int optname, void *ctx, int size);
+Socket socket_setopt(Socket s, int level, int optname, void *ctx, int size);
 
 
 /**
@@ -241,7 +263,47 @@ void socket_ipv4(char *buffer, int size);
  * @param second You can set `3s` or `0.02s`.
  * @return `SOCKET_INVALID` for failure.
 **/
-int socket_setopt_timeout(Socket c, int type, double second);
+Socket socket_setopt_timeout(Socket c, int type, double second);
+
+
+/**
+ * @brief Check if `buffer` is a valid IPv4 address.
+ * @param buffer The input string.
+ * @return `1` for yes, `0` for no.
+**/
+int socket_valid_ipv4(char *buffer);
+
+
+/**
+ * @brief Connect to a server using socket with timeout in non-blocking.
+ * @param s The socket descriptor.
+ * @param server Pointer to the `sockaddr_in` structure.
+ * @param size The `sizeof(server)` of the `sockaddr_in` structure.
+ * @param second You can set `3s` or `0.02s`.
+ * @return `SOCKET_INVALID` for failure.
+**/
+Socket socket_connect_timeout(Socket s, struct sockaddr_in *server, int size, double second);
+
+
+/**
+ * @brief Send data through socket TCP tunnel in non-blocking.
+ * @param s The socket descriptor.
+ * @param buffer The data buffer.
+ * @param length The length of data buffer.
+ * @return `> 0` for actual bytes sent, `= 0` for connection closed, `< 0` for failure in sending.
+**/
+long socket_send_nowait(Socket s, char *buffer, int length);
+
+
+/**
+ * @brief Send a file using socket. `Linux` and `macOS` use `sendfile`; `Windows` uses `fread` + `send`.
+ * @param s Destination socket to send data to.
+ * @param f Source file pointer opened in binary read mode `"rb"`.
+ * @param offset Byte offset within the file to start sending from.
+ * @param size Number of bytes to send starting from offset (typically `total_size - offset`).
+ * @return Total bytes sent on success, `-1` on a non-recoverable error.
+**/
+long long socket_sendfile(Socket s, FILE *f, long long offset, long long size);
 
 
 #endif
