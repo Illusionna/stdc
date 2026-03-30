@@ -192,15 +192,15 @@ double os_random(double low, double high) {
 }
 
 
-unsigned long long os_filesize(char *filepath) {
+int64 os_filesize(char *filepath) {
     #if defined(__OS_UNIX__)
         struct stat file;
-        if (stat(filepath, &file) == -1) return 0;
-        return (long long)file.st_size;
+        if (stat(filepath, &file) == -1) return -1;
+        return (int64)file.st_size;
     #elif defined(__OS_WINDOWS__)
-        struct _stat file;
-        if (_stat(filepath, &file) == -1) return 0;
-        return (long long)file.st_size;
+        struct _stat64 file;
+        if (_stat64(filepath, &file) == -1) return -1;
+        return (int64)file.st_size;
     #endif
 }
 
@@ -241,4 +241,53 @@ void os_munmap(MapFile *f) {
         CloseHandle(f->hFile);
     #endif
     free(f);
+}
+
+
+void os_listdir(char *path, _ListdirCallback func) {
+    #if defined(__OS_UNIX__)
+        DIR *dir = opendir(path);
+        if (!dir) return;
+        struct dirent *p;
+        while ((p = readdir(dir)) != NULL) {
+            if (strcmp(p->d_name, ".") != 0 && strcmp(p->d_name, "..") != 0) {
+                bool folder = (p->d_type == DT_DIR) ? True : False;
+                func(path, p->d_name, folder);
+            }
+        }
+        closedir(dir);
+    #elif defined(__OS_WINDOWS__)
+        WIN32_FIND_DATA f;
+        char dir[MAX_PATH];
+        snprintf(dir, sizeof(dir), "%s\\*", path);
+        HANDLE h = FindFirstFile(dir, &f);
+        if (h == INVALID_HANDLE_VALUE) return;
+        do {
+            if (strcmp(f.cFileName, ".") != 0 && strcmp(f.cFileName, "..") != 0) {
+                bool folder = (f.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? True : False;
+                func(path, f.cFileName, folder);
+            }
+        } while (FindNextFile(h, &f));
+        FindClose(h);
+    #endif
+}
+
+
+bool os_traversal(char *path) {
+    if (path == NULL) return False;
+    usize i = 0;
+    usize len = strlen(path);
+    while (i < len) {
+        while (i < len && (path[i] == '/' || path[i] == '\\')) i++;
+        if (i >= len) break;
+        usize dot_count = 0;
+        bool only_dots = True;
+        while (i < len && !(path[i] == '/' || path[i] == '\\')) {
+            if (path[i] == '.') dot_count++;
+            else only_dots = False;
+            i++;
+        }
+        if (only_dots && dot_count >= 2) return True;
+    }
+    return False;
 }
