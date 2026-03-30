@@ -19,6 +19,7 @@
     #include <windows.h>
 #elif defined(__OS_UNIX__)
     #include <fcntl.h>
+    #include <dirent.h>
     #include <unistd.h>
     #include <limits.h>
     #include <sys/mman.h>
@@ -64,6 +65,9 @@
         HANDLE hMapping;
     } MapFile;
 #endif
+
+
+typedef void (*_ListdirCallback)(char *dir, char *name, bool folder);
 
 
 /**
@@ -164,9 +168,9 @@ double os_random(double low, double high);
 /**
  * @brief Get the size of file.
  * @param filepath The path of file.
- * @return The size of file (`0` for empty).
+ * @return The size of file (`-1` for failure).
 **/
-unsigned long long os_filesize(char *filepath);
+int64 os_filesize(char *filepath);
 
 
 /**
@@ -193,6 +197,31 @@ MapFile *os_mmap(char *filepath, usize length);
  * @param f The pointer to the `MapFile` structure to be released.
 **/
 void os_munmap(MapFile *f);
+
+
+/**
+ * @brief List the contents of a directory.
+ * @param path The path of directory.
+ * @param func The callback function like `void recurse(char *dir, char *name, bool folder)`. Go to the `os.h` declaration to see how to use `_ListdirCallback func`.
+ * @example
+ * @code
+void recurse(char *dir, char *name, bool folder) {
+    char path[1024];
+    snprintf(path, sizeof(path), "%s/%s", dir, name);
+    printf("%s\n", path);
+    if (folder) os_listdir(path, recurse);
+}
+ * @endcode
+**/
+void os_listdir(char *path, _ListdirCallback func);
+
+
+/**
+ * @brief Check whether the path exceeds the boundary.
+ * @param path A path like `"./documents/../main.tex"`.
+ * @return `1` for `True`, `0` for `False`.
+**/
+bool os_traversal(char *path);
 
 
 #endif
