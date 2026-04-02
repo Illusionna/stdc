@@ -158,6 +158,23 @@ uint64 hashmap_count(HashMap *dict) {
 }
 
 
+bool hashmap_equals(HashMap *dict1, HashMap *dict2) {
+    if (dict1 == dict2) return True;
+    if (!dict1 || !dict2) return False;
+    if (dict1->count != dict2->count) return False;
+
+    HashMapVariant *key;
+    HashMapVariant *value;
+
+    hashmap_iter(dict1, key, value) {
+        HashMapVariant *v = __hashmap_get__(dict2, *key);
+        if (!v) return False;
+        if (!__hashmap_variant_equals__(*value, *v)) return False;
+    }
+    return True;
+}
+
+
 bool __hashmap_add__(HashMap *dict, HashMapVariant key, HashMapVariant value) {
     if (!dict || key.type == _HASHMAP_NULL) return False;
     if (key.type == _HASHMAP_STRING && !key.as.str) return False;
