@@ -216,6 +216,15 @@ uint64 hashmap_count(HashMap *dict);
 
 
 /**
+ * @brief Judge that `dict1` equlas to `dict2`.
+ * @param dict1 The first `HashMap`.
+ * @param dict2 The second `HashMap`.
+ * @return `1` for yes, `0` for no.
+**/
+bool hashmap_equals(HashMap *dict1, HashMap *dict2);
+
+
+/**
  * @brief The wrapper of implementation of `add` function.
  * @param dict The `HashMap` dictionary.
  * @param key The `HashMapVariant` key (not allowed to be `NULL`).
