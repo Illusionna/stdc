@@ -244,7 +244,7 @@ void os_munmap(MapFile *f) {
 }
 
 
-void os_listdir(char *path, _ListdirCallback func) {
+void os_listdir(char *path, _ListdirCallback func, void *args) {
     #if defined(__OS_UNIX__)
         DIR *dir = opendir(path);
         if (!dir) return;
@@ -252,7 +252,12 @@ void os_listdir(char *path, _ListdirCallback func) {
         while ((p = readdir(dir)) != NULL) {
             if (strcmp(p->d_name, ".") != 0 && strcmp(p->d_name, "..") != 0) {
                 bool folder = (p->d_type == DT_DIR) ? True : False;
-                func(path, p->d_name, folder);
+                uint64 size = 0;
+                char full_path[1024];
+                snprintf(full_path, sizeof(full_path), "%s/%s", path, p->d_name);
+                struct stat st;
+                if (stat(full_path, &st) == 0) size = (uint64)st.st_size;
+                func(path, p->d_name, folder, size, args);
             }
         }
         closedir(dir);
@@ -265,7 +270,8 @@ void os_listdir(char *path, _ListdirCallback func) {
         do {
             if (strcmp(f.cFileName, ".") != 0 && strcmp(f.cFileName, "..") != 0) {
                 bool folder = (f.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? True : False;
-                func(path, f.cFileName, folder);
+                uint64 size = ((uint64)f.nFileSizeHigh << 32) | f.nFileSizeLow;
+                func(path, f.cFileName, folder, size, args);
             }
         } while (FindNextFile(h, &f));
         FindClose(h);
@@ -290,4 +296,47 @@ bool os_traversal(char *path) {
         if (only_dots && dot_count >= 2) return True;
     }
     return False;
+}
+
+
+int os_remove(char *path) {
+    char base[1024];
+    char sub[1024];
+    int len = snprintf(base, sizeof(base), "%s", path);
+    int self = 1;
+
+    if (len >= 2 && base[len - 1] == '.' && (base[len - 2] == '/' || base[len - 2] == '\\')) {
+        base[len - 2] = '\0';
+        self = 0;
+    }
+
+    #if defined(__OS_UNIX__)
+        DIR *d = opendir(base);
+        if (!d) return remove(base);
+        struct dirent *p;
+        while ((p = readdir(d))) {
+            if (strcmp(p->d_name, ".") && strcmp(p->d_name, "..")) {
+                snprintf(sub, sizeof(sub), "%s/%s", base, p->d_name);
+                struct stat st;
+                (!stat(sub, &st) && S_ISDIR(st.st_mode)) ? os_remove(sub) : remove(sub);
+            }
+        }
+        closedir(d);
+        return self ? remove(base) : 0;
+    #elif defined(__OS_WINDOWS__)
+        WIN32_FIND_DATAA fd;
+        snprintf(sub, sizeof(sub), "%s\\*", base);
+        HANDLE h = FindFirstFileA(sub, &fd);
+        if (h == INVALID_HANDLE_VALUE) return remove(base);
+        do {
+            if (strcmp(fd.cFileName, ".") && strcmp(fd.cFileName, "..")) {
+                snprintf(sub, sizeof(sub), "%s\\%s", base, fd.cFileName);
+                (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? os_remove(sub) : remove(sub);
+            }
+        } while (FindNextFileA(h, &fd));
+        FindClose(h);
+        return self ? RemoveDirectoryA(base) : 0;
+    #endif
+
+    return 1;
 }
