@@ -67,7 +67,7 @@
 #endif
 
 
-typedef void (*_ListdirCallback)(char *dir, char *name, bool folder);
+typedef void (*_ListdirCallback)(char *dir, char *name, bool folder, uint64 size, void *args);
 
 
 /**
@@ -202,18 +202,22 @@ void os_munmap(MapFile *f);
 /**
  * @brief List the contents of a directory.
  * @param path The path of directory.
- * @param func The callback function like `void recurse(char *dir, char *name, bool folder)`. Go to the `os.h` declaration to see how to use `_ListdirCallback func`.
+ * @param func The callback function like `void recurse(char *dir, char *name, bool folder, uint64 size, void *args)`. Go to the `os.h` declaration to see how to use `_ListdirCallback func`.
+ * @param args The context arguments.
  * @example
  * @code
-void recurse(char *dir, char *name, bool folder) {
+void recurse(char *dir, char *name, bool folder, uint64 size, void *args) {
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s", dir, name);
-    printf("%s\n", path);
-    if (folder) os_listdir(path, recurse);
+    if (folder) {
+        printf("%s\n", path);
+        os_listdir(path, recurse, args);
+    }
+    else printf("%llu | %s\n", size, path);
 }
  * @endcode
 **/
-void os_listdir(char *path, _ListdirCallback func);
+void os_listdir(char *path, _ListdirCallback func, void *args);
 
 
 /**
@@ -222,6 +226,14 @@ void os_listdir(char *path, _ListdirCallback func);
  * @return `1` for `True`, `0` for `False`.
 **/
 bool os_traversal(char *path);
+
+
+/**
+ * @brief Remove a file or directory.
+ * @param path The path of file or directory.
+ * @return `0` for success.
+**/
+int os_remove(char *path);
 
 
 #endif
