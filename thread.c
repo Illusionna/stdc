@@ -23,7 +23,7 @@
 
 
 int thread_create(Thread *thread, _ThreadFunction func, void *args) {
-    _ThreadInformation *info = malloc(sizeof(_ThreadInformation));
+    _ThreadInformation *info = malloc(sizeof(*info));
     if (info == NULL) return 1;
 
     info->ptr = func;
