@@ -60,6 +60,8 @@ int thread_join(Thread *thread, int *result) {
             GetExitCodeThread(*thread, &d);
             *result = d;
         }
+        CloseHandle(*thread);
+        *thread = NULL;
     #endif
     return 0;
 }
