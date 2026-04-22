@@ -2,7 +2,7 @@
 
 
 HashMap *hashmap_create() {
-    HashMap *dict = malloc(sizeof(HashMap));
+    HashMap *dict = malloc(sizeof(*dict));
     if (!dict) return NULL;
 
     uint64 buckets = __next_power_base__(HASHMAP_INIT_BUCKETS, 2);
@@ -89,7 +89,7 @@ void hashmap_print_view(HashMap *dict) {
     printf("Bucket Table = \x1b[1;37m%llu B\x1b[0m (%llu buckets x %zu B)\n", table_size, dict->bucket, sizeof(_HashMapNode *));
     printf("Node = \x1b[1;37m%llu B\x1b[0m (%llu nodes x %zu B)\n", nodes_size, dict->count, sizeof(_HashMapNode));
     printf("String Heap = \x1b[1;37m%llu B\x1b[0m\n", string_size);
-    printf("Total = \x1b[1;37m%llu B\x1b[0m (\x1b[1;37m%s\x1b[0m)\n\n", total, buffer);
+    printf("Total = \x1b[1;37m%llu B\x1b[0m (\x1b[1;37m%s\x1b[0m)\n", total, buffer);
 }
 
 
@@ -158,23 +158,6 @@ uint64 hashmap_count(HashMap *dict) {
 }
 
 
-bool hashmap_equals(HashMap *dict1, HashMap *dict2) {
-    if (dict1 == dict2) return True;
-    if (!dict1 || !dict2) return False;
-    if (dict1->count != dict2->count) return False;
-
-    HashMapVariant *key;
-    HashMapVariant *value;
-
-    hashmap_iter(dict1, key, value) {
-        HashMapVariant *v = __hashmap_get__(dict2, *key);
-        if (!v) return False;
-        if (!__hashmap_variant_equals__(*value, *v)) return False;
-    }
-    return True;
-}
-
-
 bool __hashmap_add__(HashMap *dict, HashMapVariant key, HashMapVariant value) {
     if (!dict || key.type == _HASHMAP_NULL) return False;
     if (key.type == _HASHMAP_STRING && !key.as.str) return False;
@@ -208,7 +191,7 @@ bool __hashmap_add__(HashMap *dict, HashMapVariant key, HashMapVariant value) {
         return False;
     }
 
-    _HashMapNode *node = malloc(sizeof(_HashMapNode));
+    _HashMapNode *node = malloc(sizeof(*node));
     if (!node) {
         __hashmap_variant_cleanup__(key_copy);
         __hashmap_variant_cleanup__(value_copy);
