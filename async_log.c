@@ -18,6 +18,7 @@ struct {
 
 
 void async_log_init(int n_workers, int queue_capacity) {
+    if (_LogLock.pool != NULL) return;
     _LogLock.pool = threadpool_create(n_workers, queue_capacity);
     for (int i = 0; i < ASYNC_LOG_MAX_THREAD_POOL_SIZE - 1; i++) _LogLock.array[i].next = &_LogLock.array[i + 1];
     _LogLock.array[ASYNC_LOG_MAX_THREAD_POOL_SIZE - 1].next = NULL;
@@ -26,7 +27,9 @@ void async_log_init(int n_workers, int queue_capacity) {
 
 
 void async_log_exit(int safe_exit) {
-    threadpool_destroy(_LogLock.pool, safe_exit); 
+    if (!_LogLock.pool) return;
+    threadpool_destroy(_LogLock.pool, safe_exit);
+    _LogLock.pool = NULL;
 }
 
 
@@ -71,7 +74,14 @@ void __async_log_print__(int level, char *file, int line, char *fmt, ...) {
         task->file = file;
         task->line = line;
         time_t now = time(NULL);
-        task->time = *localtime(&now);
+
+        // task->time = *localtime(&now);
+        #if defined(__OS_UNIX__)
+            localtime_r(&now, &task->time);
+        #elif defined(__OS_WINDOWS__)
+            localtime_s(&task->time, &now);
+        #endif
+
         va_list args;
         va_start(args, fmt);
         vsnprintf(task->message, ASYNC_LOG_MAX_MESSAGE_LENGTH, fmt, args);
