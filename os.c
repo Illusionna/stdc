@@ -34,7 +34,7 @@ char *os_readfile(char *path, int range_start, int range_end) {
         long length = ftell(f);
         rewind(f);
 
-        char *buffer = (char *)malloc(sizeof(char) * (length + 1));
+        char *buffer = (char *)malloc((length + 1) * sizeof(*buffer));
         if (!buffer) {
             fclose(f);
             return NULL;
@@ -49,7 +49,7 @@ char *os_readfile(char *path, int range_start, int range_end) {
 
         int length = range_end - range_start + 1;
         fseek(f, range_start, SEEK_SET);
-        char *buffer = (char *)malloc(sizeof(char) * (length + 1));
+        char *buffer = (char *)malloc((length + 1) * sizeof(*buffer));
         if (!buffer) {
             fclose(f);
             return NULL;
@@ -207,7 +207,7 @@ int64 os_filesize(char *filepath) {
 
 
 MapFile *os_mmap(char *filepath, usize length) {
-    MapFile *f = malloc(sizeof(MapFile));
+    MapFile *f = malloc(sizeof(*f));
     if (!f) return NULL;
     f->size = length;
 
