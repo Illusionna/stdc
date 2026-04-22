@@ -1,7 +1,7 @@
 #include "os.h"
 
 
-static unsigned long long OS_SEED = 1;
+static volatile unsigned long long OS_SEED = 1;
 
 
 int os_getpid() {
@@ -182,12 +182,13 @@ void os_getexec(char *buffer, int size) {
 
 void os_srand() {
     unsigned int i = (unsigned int)time(NULL);
+    srand(i);
     OS_SEED = (((long long int)i) << 16) | rand();
 }
 
 
 double os_random(double low, double high) {
-    OS_SEED = (0x5DEECE66DLL * OS_SEED + 0xB16) & 0xFFFFFFFFFFFFLL;
+    OS_SEED = (0x5DEECE66DLL * OS_SEED + 0xBLL) & 0xFFFFFFFFFFFFLL;
     return low + (high - low) * ((double)(OS_SEED >> 16) / (double)0x100000000LL);
 }
 
@@ -207,24 +208,40 @@ int64 os_filesize(char *filepath) {
 
 MapFile *os_mmap(char *filepath, usize length) {
     MapFile *f = malloc(sizeof(MapFile));
+    if (!f) return NULL;
     f->size = length;
+
     #if defined(__OS_UNIX__)
         f->fd = open(filepath, O_RDONLY);
-        if (f->fd == -1) return NULL;
+        if (f->fd == -1) {
+            free(f);
+            return NULL;
+        }
         f->data = mmap(NULL, length, PROT_READ, MAP_PRIVATE, f->fd, 0);
         if (f->data == MAP_FAILED) {
             close(f->fd);
+            free(f);
             return NULL;
         }
     #elif defined(__OS_WINDOWS__)
         f->hFile = CreateFile(filepath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-        if (f->hFile == INVALID_HANDLE_VALUE) return NULL;
+        if (f->hFile == INVALID_HANDLE_VALUE) {
+            free(f);
+            return NULL;
+        }
         f->hMapping = CreateFileMapping(f->hFile, NULL, PAGE_READONLY, 0, 0, NULL);
         if (f->hMapping == NULL) {
             CloseHandle(f->hFile);
+            free(f);
             return NULL;
         }
         f->data = MapViewOfFile(f->hMapping, FILE_MAP_READ, 0, 0, length);
+        if (f->data == NULL) {
+            CloseHandle(f->hMapping);
+            CloseHandle(f->hFile);
+            free(f);
+            return NULL;
+        }
     #endif
     return f;
 }
@@ -316,7 +333,8 @@ int os_remove(char *path) {
         struct dirent *p;
         while ((p = readdir(d))) {
             if (strcmp(p->d_name, ".") && strcmp(p->d_name, "..")) {
-                snprintf(sub, sizeof(sub), "%s/%s", base, p->d_name);
+                int n = snprintf(sub, sizeof(sub), "%s/%s", base, p->d_name);
+                if (n < 0 || n >= (int)sizeof(sub)) continue;
                 struct stat st;
                 (!stat(sub, &st) && S_ISDIR(st.st_mode)) ? os_remove(sub) : remove(sub);
             }
