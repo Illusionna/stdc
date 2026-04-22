@@ -124,7 +124,8 @@ int threadpool_destroy(ThreadPool *pool, int safe_exit) {
     pool->shutdown = 1;
 
     if (!safe_exit) {
-        for (int i = 0; i < pool->queue_length; i++) {
+        int n = pool->queue_length;
+        for (int i = 0; i < n; i++) {
             int idx = (pool->queue_head + i) % pool->queue_capacity;
 
             ThreadTask *task = &pool->queue[idx];
