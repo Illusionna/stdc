@@ -138,20 +138,23 @@ unsigned short socket_htons(unsigned short value) {
 
 
 void socket_ipv4(char *buffer, int size) {
+    if (buffer && size > 0) buffer[0] = '\0';
+
     #if defined(__OS_UNIX__)
         struct ifaddrs *ifa;
         struct ifaddrs *ifaddr;
         if (getifaddrs(&ifaddr) == -1) return;
         for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
             if (ifa->ifa_addr == NULL) continue;
-            if (ifa->ifa_addr->sa_family == AF_INET) {
-                if (ifa->ifa_flags & IFF_LOOPBACK) continue;
-                int s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), buffer, size, NULL, 0, NI_NUMERICHOST);
-                if (s == 0) {
-                    freeifaddrs(ifaddr);
-                    return;
-                }
+            if (ifa->ifa_addr->sa_family != AF_INET) continue;
+            if (ifa->ifa_flags & IFF_LOOPBACK) continue;
+            int s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), buffer, size, NULL, 0, NI_NUMERICHOST);
+            if (s != 0) {
+                buffer[0] = '\0';
+                continue;
             }
+            freeifaddrs(ifaddr);
+            return;
         }
         freeifaddrs(ifaddr);
     #elif defined(__OS_WINDOWS__)
@@ -160,26 +163,36 @@ void socket_ipv4(char *buffer, int size) {
         struct addrinfo hints;
         struct addrinfo *res = NULL;
         struct addrinfo *ptr = NULL;
+
         if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) return;
-        if (gethostname(hostname, sizeof(hostname)) == 0) {
-            memset(&hints, 0, sizeof(hints));
-            hints.ai_family = AF_INET;
-            hints.ai_socktype = SOCK_STREAM;
-            if (getaddrinfo(hostname, NULL, &hints, &res) == 0) {
-                for (ptr = res; ptr != NULL; ptr = ptr->ai_next) {
-                    struct sockaddr_in *ipv4 = (struct sockaddr_in *)ptr->ai_addr;
-                    char *ip = inet_ntoa(ipv4->sin_addr);
-                    if (ip != NULL) {
-                        if (strcmp(ip, "127.0.0.1") != 0) {
-                            strncpy(buffer, ip, size);
-                            buffer[size - 1] = '\0';
-                            break;
-                        }
-                    }
-                }
-                freeaddrinfo(res);
-            }
+
+        if (gethostname(hostname, sizeof(hostname)) != 0) {
+            WSACleanup();
+            return;
         }
+
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+
+        if (getaddrinfo(hostname, NULL, &hints, &res) != 0) {
+            WSACleanup();
+            return;
+        }
+
+        for (ptr = res; ptr != NULL; ptr = ptr->ai_next) {
+            if (buffer && size > 0) buffer[0] = '\0';
+            if (ptr->ai_family != AF_INET) continue;
+            struct sockaddr_in *ipv4 = (struct sockaddr_in *)ptr->ai_addr;
+            char *ip = inet_ntoa(ipv4->sin_addr);
+            if (ip == NULL) continue;
+            if (strcmp(ip, "127.0.0.1") == 0) continue;
+            strncpy(buffer, ip, size);
+            buffer[size - 1] = '\0';
+            break;
+        }
+
+        freeaddrinfo(res);
         WSACleanup();
     #endif
 }
