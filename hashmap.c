@@ -10,6 +10,7 @@ HashMap *hashmap_create() {
     if (!buckets) {
         fprintf(stderr, "\x1b[1;31m1. the base might be less than one.\x1b[0m\n");
         fprintf(stderr, "\x1b[1;31m2. an uint64_t overflow might occur.\x1b[0m\n");
+        free(dict);
         return NULL;
     }
 
