@@ -7,7 +7,9 @@
         #define __OS_WINDOWS__
     #elif defined(__linux__) || defined(__APPLE__)
         #define __OS_UNIX__
-        #define _GNU_SOURCE
+        #ifndef _GNU_SOURCE
+            #define _GNU_SOURCE
+        #endif
     #else
         #error "Unsupported platforms."
     #endif
@@ -15,6 +17,7 @@
 
 
 #include <stdlib.h>
+#include <stdint.h>
 
 
 #if defined(__OS_WINDOWS__)
@@ -31,12 +34,12 @@
     typedef pthread_cond_t ThreadCondition;
 #elif defined(__OS_WINDOWS__)
     typedef HANDLE Thread;
-    typedef struct {
+    typedef struct Mutex {
         CRITICAL_SECTION cs;
         int status;
         int recursive;
     } Mutex;
-    typedef struct {
+    typedef struct ThreadCondition {
         HANDLE events[2];
         unsigned int waiter_count;
         CRITICAL_SECTION cs;
@@ -47,7 +50,7 @@
 typedef int (*_ThreadFunction)(void *);
 
 
-typedef struct {
+typedef struct _ThreadInformation {
     _ThreadFunction ptr;
     void *args;
 } _ThreadInformation;
@@ -91,7 +94,7 @@ int thread_detach(Thread *thread);
 /**
  * @brief Exit the current thread.
 **/
-void thread_exit();
+void thread_exit(void);
 
 
 /**
