@@ -6,12 +6,10 @@
 #include <stddef.h>
 
 
-#if UINTPTR_MAX == 0xffffffff
-    #define __ARCH_32__
-#elif UINTPTR_MAX == 0xffffffffffffffff
+#if UINTPTR_MAX == 0xffffffffffffffff
     #define __ARCH_64__
 #else
-    #error "Unsupported platforms."
+    #error "Unsupported architecture. TCPer supports 64-bit Windows, Linux, and macOS only."
 #endif
 
 
@@ -20,7 +18,9 @@
         #define __OS_WINDOWS__
     #elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
         #define __OS_UNIX__
-        #define _GNU_SOURCE
+        #ifndef _GNU_SOURCE
+            #define _GNU_SOURCE
+        #endif
     #else
         #error "Unsupported platforms."
     #endif
@@ -62,7 +62,6 @@
 
 #define True 1
 #define False 0
-#define bool int
 #define intptr(x) ((intptr_t)(x))
 #define uintptr(x) ((uintptr_t)(x))
 #define int32ptr(x) ((int32_t)(intptr_t)(x))
@@ -71,6 +70,7 @@
 #define uint64ptr(x) ((unsigned long long)(uintptr_t)(x))
 
 
+typedef int bool;
 typedef size_t usize;
 typedef ptrdiff_t isize;
 typedef uint8_t byte;
