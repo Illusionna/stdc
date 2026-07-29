@@ -7,7 +7,9 @@
         #define __OS_WINDOWS__
     #elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
         #define __OS_UNIX__
-        #define _GNU_SOURCE
+        #ifndef _GNU_SOURCE
+            #define _GNU_SOURCE
+        #endif
     #else
         #error "Unsupported platforms."
     #endif
@@ -24,13 +26,13 @@
 
 #define True 1
 #define False 0
-#define bool int
 #define intptr(x) ((intptr_t)(x))
 #define uintptr(x) ((uintptr_t)(x))
 #define int32ptr(x) ((int32_t)(intptr_t)(x))
 #define int64ptr(x) ((long long)(intptr_t)(x))
 #define uint32ptr(x) ((uint32_t)(uintptr_t)(x))
 #define uint64ptr(x) ((unsigned long long)(uintptr_t)(x))
+typedef int bool;
 typedef size_t usize;
 typedef ptrdiff_t isize;
 typedef uint8_t byte;
@@ -169,7 +171,7 @@ typedef struct HashMap {
  * @brief Create a new `HashMap` dictionary.
  * @return The pointer to the new `HashMap` dictionary.
 **/
-HashMap *hashmap_create();
+HashMap *hashmap_create(void);
 
 
 /**
@@ -213,15 +215,6 @@ void hashmap_clear(HashMap *dict);
  * @return The count of elements (`0` for `NULL` dictionary).
 **/
 uint64 hashmap_count(HashMap *dict);
-
-
-/**
- * @brief Judge that `dict1` equlas to `dict2`.
- * @param dict1 The first `HashMap`.
- * @param dict2 The second `HashMap`.
- * @return `1` for yes, `0` for no.
-**/
-bool hashmap_equals(HashMap *dict1, HashMap *dict2);
 
 
 /**
@@ -347,7 +340,7 @@ void __convert_unit__(uint64 x, char *buffer, int size);
 
 
 static inline HashMapVariant __hashmap_var_int__(int x) {
-    return (HashMapVariant){
+    return (HashMapVariant) {
         .type = _HASHMAP_INT32,
         .as.i = (int32)(x)
     };
@@ -355,7 +348,7 @@ static inline HashMapVariant __hashmap_var_int__(int x) {
 
 
 static inline HashMapVariant __hashmap_var_long_long__(long long x) {
-    return (HashMapVariant){
+    return (HashMapVariant) {
         .type = _HASHMAP_INT64,
         .as.l = (int64)(x)
     };
@@ -363,7 +356,7 @@ static inline HashMapVariant __hashmap_var_long_long__(long long x) {
 
 
 static inline HashMapVariant __hashmap_var_unsigned_int__(unsigned int x) {
-    return (HashMapVariant){
+    return (HashMapVariant) {
         .type = _HASHMAP_UINT32,
         .as.ui = (uint32)(x)
     };
@@ -372,12 +365,12 @@ static inline HashMapVariant __hashmap_var_unsigned_int__(unsigned int x) {
 
 static inline HashMapVariant __hashmap_var_long__(long x) {
     #if defined(__OS_UNIX__)
-        return (HashMapVariant){
+        return (HashMapVariant) {
             .type = _HASHMAP_INT64,
             .as.l = (int64)(x)
         };
     #elif defined(__OS_WINDOWS__)
-        return (HashMapVariant){
+        return (HashMapVariant) {
             .type = _HASHMAP_INT32,
             .as.i = (int32)(x)
         };
@@ -387,12 +380,12 @@ static inline HashMapVariant __hashmap_var_long__(long x) {
 
 static inline HashMapVariant __hashmap_var_unsigned_long__(unsigned long x) {
     #if defined(__OS_UNIX__)
-        return (HashMapVariant){
+        return (HashMapVariant) {
             .type = _HASHMAP_UINT64,
             .as.ul = (uint64)(x)
         };
     #elif defined(__OS_WINDOWS__)
-        return (HashMapVariant){
+        return (HashMapVariant) {
             .type = _HASHMAP_UINT32,
             .as.ui = (uint32)(x)
         };
@@ -401,7 +394,7 @@ static inline HashMapVariant __hashmap_var_unsigned_long__(unsigned long x) {
 
 
 static inline HashMapVariant __hashmap_var_unsigned_long_long__(unsigned long long x) {
-    return (HashMapVariant){
+    return (HashMapVariant) {
         .type = _HASHMAP_UINT64,
         .as.ul = (uint64)(x)
     };
@@ -409,7 +402,7 @@ static inline HashMapVariant __hashmap_var_unsigned_long_long__(unsigned long lo
 
 
 static inline HashMapVariant __hashmap_var_float__(float x) {
-    return (HashMapVariant){
+    return (HashMapVariant) {
         .type = _HASHMAP_FLOAT,
         .as.f = (float32)(x)
     };
@@ -417,7 +410,7 @@ static inline HashMapVariant __hashmap_var_float__(float x) {
 
 
 static inline HashMapVariant __hashmap_var_double__(double x) {
-    return (HashMapVariant){
+    return (HashMapVariant) {
         .type = _HASHMAP_DOUBLE,
         .as.d = (float64)(x)
     };
@@ -425,7 +418,7 @@ static inline HashMapVariant __hashmap_var_double__(double x) {
 
 
 static inline HashMapVariant __hashmap_var_string__(char *x) {
-    return (HashMapVariant){
+    return (HashMapVariant) {
         .type = _HASHMAP_STRING,
         .as.str = x
     };
@@ -433,7 +426,7 @@ static inline HashMapVariant __hashmap_var_string__(char *x) {
 
 
 static inline HashMapVariant __hashmap_var_const_string__(const char *x) {
-    return (HashMapVariant){
+    return (HashMapVariant) {
         .type = _HASHMAP_STRING,
         .as.str = (char *)x
     };
@@ -441,7 +434,7 @@ static inline HashMapVariant __hashmap_var_const_string__(const char *x) {
 
 
 static inline HashMapVariant __hashmap_var_pointer__(void *x) {
-    return (HashMapVariant){
+    return (HashMapVariant) {
         .type = _HASHMAP_POINTER,
         .as.ptr = x
     };
@@ -449,7 +442,7 @@ static inline HashMapVariant __hashmap_var_pointer__(void *x) {
 
 
 static inline HashMapVariant __hashmap_var_const_pointer__(const void *x) {
-    return (HashMapVariant){
+    return (HashMapVariant) {
         .type = _HASHMAP_POINTER,
         .as.ptr = (void *)x
     };
