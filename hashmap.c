@@ -1,7 +1,7 @@
 #include "hashmap.h"
 
 
-HashMap *hashmap_create() {
+HashMap *hashmap_create(void) {
     HashMap *dict = malloc(sizeof(*dict));
     if (!dict) return NULL;
 
@@ -185,7 +185,6 @@ bool __hashmap_add__(HashMap *dict, HashMapVariant key, HashMapVariant value) {
 
     HashMapVariant key_copy = __hashmap_variant_copy__(key);
     if (key.type == _HASHMAP_STRING && key.as.str && key_copy.type == _HASHMAP_NULL) return False;
-
     HashMapVariant value_copy = __hashmap_variant_copy__(value);
     if (value.type == _HASHMAP_STRING && value.as.str && value_copy.type == _HASHMAP_NULL) {
         __hashmap_variant_cleanup__(key_copy);
