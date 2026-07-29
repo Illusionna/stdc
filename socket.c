@@ -1,10 +1,12 @@
 #include "socket.h"
 
 
-Socket socket_init() {
-    #ifdef __OS_WINDOWS__
+Socket socket_init(void) {
+    #if defined(__OS_WINDOWS__)
         WSADATA wsa;
         if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return SOCKET_INVALID;
+    #elif defined(__OS_UNIX__)
+        signal(SIGPIPE, SIG_IGN);
     #endif
     return 0;
 }
@@ -26,8 +28,8 @@ void socket_close(Socket s) {
 }
 
 
-void socket_destroy() {
-    #ifdef __OS_WINDOWS__
+void socket_destroy(void) {
+    #if defined(__OS_WINDOWS__)
         WSACleanup();
     #endif
 }
@@ -64,6 +66,71 @@ long socket_sendto(Socket s, void *buffer, int length, int flag, struct sockaddr
 
 long socket_recv(Socket s, char *buffer, int length, int flag) {
     return recv(s, buffer, length, flag);
+}
+
+
+bool socket_send_all(Socket s, void *buffer, usize length) {
+    const char *p = (const char *)buffer;
+    while (length > 0) {
+        int chunk = length > 0x7fffffffU ? 0x7fffffff : (int)length;
+        long n = socket_send(s, (char *)p, chunk, 0);
+        if (n < 0) {
+            #if defined(__OS_WINDOWS__)
+                if (WSAGetLastError() == WSAEINTR) continue;
+            #else
+                if (errno == EINTR) continue;
+            #endif
+            return False;
+        }
+        if (n == 0) return False;
+        p = p + n;
+        length = length - (usize)n;
+    }
+    return True;
+}
+
+
+bool socket_recv_all(Socket s, void *buffer, usize length) {
+    char *p = (char *)buffer;
+    while (length > 0) {
+        int chunk = length > 0x7fffffffU ? 0x7fffffff : (int)length;
+        long n = socket_recv(s, p, chunk, 0);
+        if (n < 0) {
+            #if defined(__OS_WINDOWS__)
+                if (WSAGetLastError() == WSAEINTR) continue;
+            #else
+                if (errno == EINTR) continue;
+            #endif
+            return False;
+        }
+        if (n == 0) return False;
+        p = p + n;
+        length = length - (usize)n;
+    }
+    return True;
+}
+
+
+bool socket_recv_all_deadline(Socket s, void *buffer, usize length, double deadline) {
+    char *p = (char *)buffer;
+    while (length > 0) {
+        double remaining = deadline - os_time();
+        if (remaining <= 0 || socket_setopt_timeout(s, 1, remaining) == SOCKET_INVALID) return False;
+        int chunk = length > 0x7fffffffU ? 0x7fffffff : (int)length;
+        long n = socket_recv(s, p, chunk, 0);
+        if (n < 0) {
+            #if defined(__OS_WINDOWS__)
+                if (WSAGetLastError() == WSAEINTR) continue;
+            #else
+                if (errno == EINTR) continue;
+            #endif
+            return False;
+        }
+        if (n == 0) return False;
+        p = p + n;
+        length = length - (usize)n;
+    }
+    return True;
 }
 
 
@@ -138,7 +205,8 @@ unsigned short socket_htons(unsigned short value) {
 
 
 void socket_ipv4(char *buffer, int size) {
-    if (buffer && size > 0) buffer[0] = '\0';
+    if (!buffer || size <= 0) return;
+    buffer[0] = '\0';
 
     #if defined(__OS_UNIX__)
         struct ifaddrs *ifa;
@@ -199,10 +267,15 @@ void socket_ipv4(char *buffer, int size) {
 
 
 Socket socket_setopt_timeout(Socket c, int type, double second) {
+    if (second < 0.0 || second > (double)(INT_MAX / 1000)) return SOCKET_INVALID;
     int s = (int)second;
     int ms = (int)((second - s) * 1000 + 0.5);
+    if (ms >= 1000) {
+        s++;
+        ms = ms - 1000;
+    }
     #if defined(__OS_UNIX__)
-        struct timeval timeout = {.tv_sec = s, .tv_usec = ms * 1000};
+        struct timeval timeout = { .tv_sec = s, .tv_usec = ms * 1000 };
     #elif defined(__OS_WINDOWS__)
         int timeout = s * 1000 + ms;
     #endif
@@ -212,20 +285,9 @@ Socket socket_setopt_timeout(Socket c, int type, double second) {
 
 
 int socket_valid_ipv4(char *buffer) {
-    int a, b, c, d;
-    char extra;
-    if (sscanf(buffer, "%d.%d.%d.%d%c", &a, &b, &c, &d, &extra) == 4) {
-        if (
-            a >= 0 && a <= 255
-            &&
-            b >= 0 && b <= 255
-            &&
-            c >= 0 && c <= 255
-            &&
-            d >= 0 && d <= 255
-        ) return 1;
-    }
-    return 0;
+    if (!buffer) return 0;
+    struct in_addr address;
+    return inet_pton(AF_INET, buffer, &address) == 1;
 }
 
 
@@ -233,10 +295,10 @@ Socket socket_connect_timeout(Socket s, struct sockaddr_in *server, int size, do
     // Set to non-blocking mode.
     #if defined(__OS_UNIX__)
         int flags = fcntl(s, F_GETFL, 0);
-        fcntl(s, F_SETFL, flags | O_NONBLOCK);
+        if (flags < 0 || fcntl(s, F_SETFL, flags | O_NONBLOCK) != 0) return SOCKET_INVALID;
     #elif defined(__OS_WINDOWS__)
         unsigned long mode = 1;
-        ioctlsocket(s, FIONBIO, &mode);
+        if (ioctlsocket(s, FIONBIO, &mode) != 0) return SOCKET_INVALID;
     #endif
 
     // Initiate standard C connection.
@@ -250,7 +312,7 @@ Socket socket_connect_timeout(Socket s, struct sockaddr_in *server, int size, do
         FD_SET(s, &writefds);
 
         int ms = (int)((second - (int)second) * 1000 + 0.5);
-        struct timeval tv = {.tv_sec = (int)second, .tv_usec = ms * 1000};
+        struct timeval tv = { .tv_sec = (int)second, .tv_usec = ms * 1000 };
 
         condition = select((int)(s + 1), NULL, &writefds, NULL, &tv);
 
@@ -258,11 +320,11 @@ Socket socket_connect_timeout(Socket s, struct sockaddr_in *server, int size, do
             int error = 0;
             int len = sizeof(error);
             #if defined(__OS_UNIX__)
-                getsockopt(s, SOL_SOCKET, SO_ERROR, (void *)&error, (socklen_t *)&len);
+                int result = getsockopt(s, SOL_SOCKET, SO_ERROR, (void *)&error, (socklen_t *)&len);
             #elif defined(__OS_WINDOWS__)
-                getsockopt(s, SOL_SOCKET, SO_ERROR, (char *)&error, &len);
+                int result = getsockopt(s, SOL_SOCKET, SO_ERROR, (char *)&error, &len);
             #endif
-            status = (error != 0) ? SOCKET_INVALID : 0;
+            status = (result != 0 || error != 0) ? SOCKET_INVALID : 0;
         } else {
             // `status = 0` for timeout; `status < 0` for `select()` error.
             status = SOCKET_INVALID;
@@ -271,10 +333,10 @@ Socket socket_connect_timeout(Socket s, struct sockaddr_in *server, int size, do
 
     // Restore socket to standard blocking mode.
     #if defined(__OS_UNIX__)
-        fcntl(s, F_SETFL, flags);
+        if (fcntl(s, F_SETFL, flags) != 0) status = SOCKET_INVALID;
     #elif defined(__OS_WINDOWS__)
         mode = 0;
-        ioctlsocket(s, FIONBIO, &mode);
+        if (ioctlsocket(s, FIONBIO, &mode) != 0) status = SOCKET_INVALID;
     #endif
 
     return status;
@@ -296,25 +358,27 @@ long socket_send_nowait(Socket s, char *buffer, int length) {
 
 
 long long socket_sendfile(Socket s, FILE *f, long long offset, long long size) {
+    if (s == SOCKET_INVALID || !f || offset < 0 || size < 0) return -1;
     #if defined(__linux__)
         int fd = fileno(f);
         long long sent = 0;
-        long off = offset;
+        off_t off = (off_t)offset;
         while (sent < size) {
             long n = sendfile(s, fd, &off, (unsigned long)(size - sent));
             if (n < 0) {
                 if (errno == EINTR || errno == EAGAIN) continue;
                 return -1;
             }
+            if (n == 0) break;
             sent = sent + n;
         }
         return sent;
-    #elif defined(__APPLE__)
+    #elif defined(__APPLE__) || defined(__MACH__)
         int fd = fileno(f);
         long long sent = 0;
-        long long off = offset;
+        off_t off = (off_t)offset;
         while (sent < size) {
-            long long length = size - sent;
+            off_t length = (off_t)(size - sent);
             int n = sendfile(fd, s, off, &length, NULL, 0);
             if (length > 0) {
                 off = off + length;
@@ -324,24 +388,39 @@ long long socket_sendfile(Socket s, FILE *f, long long offset, long long size) {
                 if (errno == EINTR || errno == EAGAIN) continue;
                 return -1;
             }
+            if (length == 0) break;
         }
         return sent;
     #else
         char buffer[65536];
-        size = 0;
-        unsigned long long length;
-        socket_fseek(f, offset, SEEK_SET);
-        while ((length = fread(buffer, 1, sizeof(buffer), f)) > 0) {
+        long long sent = 0;
+        if (size < 0 || socket_fseek(f, offset, SEEK_SET) != 0) return -1;
+        while (sent < size) {
+            usize want = (size - sent) > (long long)sizeof(buffer) ? sizeof(buffer) : (usize)(size - sent);
+            usize length = fread(buffer, 1, want, f);
+            if (length == 0) {
+                if (ferror(f)) return -1;
+                break;
+            }
             char *p = buffer;
-            unsigned long long left = length;
+            usize left = length;
             while (left > 0) {
-                long n = socket_send(s, p, left, 0);
-                if (n <= 0) return -1;
+                int chunk = left > 0x7fffffffU ? 0x7fffffff : (int)left;
+                long n = socket_send(s, p, chunk, 0);
+                if (n < 0) {
+                    #if defined(__OS_WINDOWS__)
+                        if (WSAGetLastError() == WSAEINTR) continue;
+                    #else
+                        if (errno == EINTR) continue;
+                    #endif
+                    return -1;
+                }
+                if (n == 0) return -1;
                 p = p + n;
-                left = left - (unsigned long long)n;
-                size = size + n;
+                left = left - (usize)n;
+                sent = sent + n;
             }
         }
-        return size;
+        return sent;
     #endif
 }
