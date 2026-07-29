@@ -5,8 +5,11 @@
 #if !defined(__OS_WINDOWS__) && !defined(__OS_UNIX__)
     #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
         #define __OS_WINDOWS__
-    #elif defined(__linux__) || defined(__APPLE__)
+    #elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
         #define __OS_UNIX__
+        #ifndef _GNU_SOURCE
+            #define _GNU_SOURCE
+        #endif
     #else
         #error "Unsupported platforms."
     #endif
@@ -15,6 +18,11 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <signal.h>
+#include <limits.h>
+
+
+#include "os.h"
 
 
 #if defined(__OS_WINDOWS__)
@@ -30,11 +38,9 @@
     #include <unistd.h>
     #include <fcntl.h>
     #include <netdb.h>
-#endif
-
-
-#if defined(__linux__)
-    #include <sys/sendfile.h>
+    #if defined(__linux__)
+        #include <sys/sendfile.h>
+    #endif
 #endif
 
 
@@ -47,6 +53,7 @@
      * @return `0` for success, `-1` for failure.
     **/
     #define socket_shutdown(s) shutdown(s, SD_SEND)
+    #define socket_abort(s) shutdown(s, SD_BOTH)
     #define socket_fseek _fseeki64
 #elif defined(__OS_UNIX__)
     typedef int Socket;
@@ -57,6 +64,7 @@
      * @return `0` for success, `-1` for failure.
     **/
     #define socket_shutdown(s) shutdown(s, SHUT_WR)
+    #define socket_abort(s) shutdown(s, SHUT_RDWR)
     #define socket_fseek fseeko
 #endif
 
@@ -81,7 +89,7 @@
  * @brief Initialize a socket.
  * @return `SOCKET_INVALID` for failure.
 **/
-Socket socket_init();
+Socket socket_init(void);
 
 
 /**
@@ -104,7 +112,7 @@ void socket_close(Socket s);
 /**
  * @brief Destroy the socket.
 **/
-void socket_destroy();
+void socket_destroy(void);
 
 
 /**
@@ -160,6 +168,37 @@ long socket_sendto(Socket s, void *buffer, int length, int flag, struct sockaddr
  * @return `> 0` for actual bytes received, `= 0` for connection closed, `< 0` for failure in receiving.
 **/
 long socket_recv(Socket s, char *buffer, int length, int flag);
+
+
+/**
+ * @brief Send an entire buffer through a TCP socket.
+ * @param s The socket descriptor.
+ * @param buffer The data buffer.
+ * @param length The number of bytes to send.
+ * @return `True` if every byte was sent, otherwise `False`.
+**/
+bool socket_send_all(Socket s, void *buffer, usize length);
+
+
+/**
+ * @brief Receive an entire buffer from a TCP socket.
+ * @param s The socket descriptor.
+ * @param buffer The destination data buffer.
+ * @param length The number of bytes to receive.
+ * @return `True` if every byte was received, otherwise `False`.
+**/
+bool socket_recv_all(Socket s, void *buffer, usize length);
+
+
+/**
+ * @brief Receive an entire buffer before a monotonic-time deadline.
+ * @param s The socket descriptor.
+ * @param buffer The destination data buffer.
+ * @param length The number of bytes to receive.
+ * @param deadline The absolute monotonic-time deadline.
+ * @return `True` if every byte was received before the deadline, otherwise `False`.
+**/
+bool socket_recv_all_deadline(Socket s, void *buffer, usize length, double deadline);
 
 
 /**
