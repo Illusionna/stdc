@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 
 #if UINTPTR_MAX == 0xffffffffffffffff
@@ -70,7 +71,6 @@
 #define uint64ptr(x) ((unsigned long long)(uintptr_t)(x))
 
 
-typedef int bool;
 typedef size_t usize;
 typedef ptrdiff_t isize;
 typedef uint8_t byte;
